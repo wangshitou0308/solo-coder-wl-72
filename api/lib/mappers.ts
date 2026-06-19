@@ -120,12 +120,14 @@ export function mapMaintenance(r: MaintenanceRow): MaintenanceRecord {
 }
 
 export function mapTariff(r: TariffRow): TariffSetting {
+  const safe = (v: number, fallback: number) =>
+    typeof v === 'number' && !Number.isNaN(v) && Number.isFinite(v) ? v : fallback;
   return {
     id: r.id,
-    feedInTariff: r.feed_in_tariff,
-    selfUseTariff: r.self_use_tariff,
-    investmentCost: r.investment_cost,
-    selfUseRatio: r.self_use_ratio,
+    feedInTariff: safe(r.feed_in_tariff, 0.41),
+    selfUseTariff: safe(r.self_use_tariff, 0.62),
+    investmentCost: safe(r.investment_cost, 32000),
+    selfUseRatio: safe(r.self_use_ratio, 0.55),
     updatedAt: r.updated_at,
   };
 }

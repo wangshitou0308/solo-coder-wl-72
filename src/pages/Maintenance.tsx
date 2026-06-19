@@ -22,7 +22,7 @@ const TYPE_COLORS: Record<string, string> = {
 
 export default function Maintenance() {
   const { data: records, loading: rLoad, reload: reloadRecords } = useApi(() => api.maintenance.list());
-  const { data: stats, loading: sLoad } = useApi(() => api.maintenance.stats());
+  const { data: stats, loading: sLoad, reload: reloadStats } = useApi(() => api.maintenance.stats());
   const { data: inverters } = useApi(() => api.inverters.list());
 
   const allPanels = inverters?.flatMap((inv: InverterWithPanels) => inv.panels) || [];
@@ -45,7 +45,7 @@ export default function Maintenance() {
       if (form.type === 'repair') payload.faultType = form.faultType;
       await api.maintenance.create(payload);
       setModal(false);
-      reloadRecords();
+      await Promise.all([reloadRecords(), reloadStats()]);
     } finally {
       setSubmitting(false);
     }
@@ -55,7 +55,7 @@ export default function Maintenance() {
     if (confirmDel == null) return;
     await api.maintenance.delete(confirmDel);
     setConfirmDel(null);
-    reloadRecords();
+    await Promise.all([reloadRecords(), reloadStats()]);
   };
 
   const openModal = () => {

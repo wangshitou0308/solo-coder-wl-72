@@ -28,9 +28,9 @@ function ChartTip({ active, payload, label }: ChartTipProps) {
 
 export default function Revenue() {
   const { data: tariff, loading: tLoad, reload: reloadTariff } = useApi(() => api.revenue.tariff());
-  const { data: summary, loading: sLoad } = useApi(() => api.revenue.summary());
-  const { data: payback, loading: pLoad } = useApi(() => api.revenue.payback());
-  const { data: carbon, loading: cLoad } = useApi(() => api.revenue.carbon());
+  const { data: summary, loading: sLoad, reload: reloadSummary } = useApi(() => api.revenue.summary());
+  const { data: payback, loading: pLoad, reload: reloadPayback } = useApi(() => api.revenue.payback());
+  const { data: carbon, loading: cLoad, reload: reloadCarbon } = useApi(() => api.revenue.carbon());
 
   const [form, setForm] = useState<Partial<TariffSetting>>({});
   const [saving, setSaving] = useState(false);
@@ -53,8 +53,23 @@ export default function Revenue() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.revenue.updateTariff(form);
-      await reloadTariff();
+      const safeNum = (v: number | undefined, fallback: number | undefined) => {
+        if (v === undefined || v === null || isNaN(v)) return fallback;
+        return v;
+      };
+      const payload: Partial<TariffSetting> = {
+        feedInTariff: safeNum(form.feedInTariff, tariff?.feedInTariff),
+        selfUseTariff: safeNum(form.selfUseTariff, tariff?.selfUseTariff),
+        investmentCost: safeNum(form.investmentCost, tariff?.investmentCost),
+        selfUseRatio: safeNum(form.selfUseRatio, tariff?.selfUseRatio),
+      };
+      await api.revenue.updateTariff(payload);
+      await Promise.all([
+        reloadTariff(),
+        reloadSummary(),
+        reloadPayback(),
+        reloadCarbon(),
+      ]);
       setForm({});
     } finally {
       setSaving(false);

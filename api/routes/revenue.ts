@@ -19,24 +19,52 @@ export function getTariff(): TariffSetting {
     const fresh = get<TariffRow>('SELECT * FROM tariff_setting ORDER BY id DESC LIMIT 1')!;
     return mapTariff(fresh);
   }
-  return mapTariff(row);
+  const result = mapTariff(row);
+
+  const needsFix =
+    row.feed_in_tariff !== result.feedInTariff ||
+    row.self_use_tariff !== result.selfUseTariff ||
+    row.investment_cost !== result.investmentCost ||
+    row.self_use_ratio !== result.selfUseRatio;
+  if (needsFix) {
+    run(
+      `UPDATE tariff_setting SET feed_in_tariff = ?, self_use_tariff = ?, investment_cost = ?, self_use_ratio = ?, updated_at = datetime('now') WHERE id = ?`,
+      result.feedInTariff,
+      result.selfUseTariff,
+      result.investmentCost,
+      result.selfUseRatio,
+      result.id,
+    );
+  }
+
+  return result;
 }
 
 router.get('/tariff', (_req: Request, res: Response) => {
   res.json(getTariff());
 });
 
+function isValidNum(v: unknown): v is number {
+  return typeof v === 'number' && !Number.isNaN(v) && Number.isFinite(v);
+}
+
 router.put('/tariff', (req: Request, res: Response) => {
   const { feedInTariff, selfUseTariff, investmentCost, selfUseRatio } = req.body ?? {};
   const current = getTariff();
+
+  const safeFeedIn = isValidNum(feedInTariff) ? feedInTariff : current.feedInTariff;
+  const safeSelfUse = isValidNum(selfUseTariff) ? selfUseTariff : current.selfUseTariff;
+  const safeInvestment = isValidNum(investmentCost) ? investmentCost : current.investmentCost;
+  const safeRatio = isValidNum(selfUseRatio) ? selfUseRatio : current.selfUseRatio;
+
   run(
     `UPDATE tariff_setting SET
        feed_in_tariff = ?, self_use_tariff = ?, investment_cost = ?, self_use_ratio = ?,
        updated_at = datetime('now') WHERE id = ?`,
-    feedInTariff ?? current.feedInTariff,
-    selfUseTariff ?? current.selfUseTariff,
-    investmentCost ?? current.investmentCost,
-    selfUseRatio ?? current.selfUseRatio,
+    safeFeedIn,
+    safeSelfUse,
+    safeInvestment,
+    Math.min(1, Math.max(0, safeRatio)),
     current.id,
   );
   res.json(getTariff());
